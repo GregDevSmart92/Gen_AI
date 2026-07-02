@@ -1,0 +1,32 @@
+APPEL D'OFFRES - Mise en place d'un assistant IA interne
+
+Client : Cabinet de conseil en stratégie (150 collaborateurs)
+
+Objet :
+Le cabinet souhaite déployer un assistant conversationnel interne capable de répondre
+aux questions des consultants à partir de sa base de méthodologies, d'anciennes
+missions et de son référentiel de compétences. L'assistant doit être hébergé en
+Europe et respecter le RGPD.
+
+Contexte :
+Actuellement, les consultants perdent un temps significatif à rechercher des documents
+dans un SharePoint mal indexé. Le cabinet souhaite un système de type RAG connecté à
+ce SharePoint, avec une interface de chat simple.
+
+Compétences attendues :
+- Mise en place d'un pipeline RAG (ingestion, embeddings, base vectorielle)
+- Connecteur SharePoint
+- Interface web de chat
+- Gouvernance des accès (chaque consultant ne doit voir que les documents autorisés)
+
+Budget : non communiqué (à proposer par le prestataire)
+
+Calendrier :
+- Date limite de réponse : dans 12 jours ouvrés
+- Démarrage souhaité : sous 2 mois
+- Durée de la mission : 3 mois
+
+Critères d'attribution :
+- Références sur des projets similaires (40%)
+- Qualité technique de la proposition (35%)
+- Prix (25%)

@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ao-agent"
+version = "0.1.0"
+description = "Agent V0 de pre-qualification d'appels d'offres pour Soma Smart"
+requires-python = ">=3.9"
+dependencies = [
+    "anthropic>=0.40.0",
+    "pymupdf>=1.24.0",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.scripts]
+ao-agent = "ao_agent.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
