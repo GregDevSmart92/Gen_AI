@@ -1,0 +1,28 @@
+# Profil entreprise utilisé par l'agent pour évaluer la pertinence d'un AO.
+# Personnalisez ces valeurs pour Soma Smart.
+
+nom_entreprise: "Soma Smart"
+
+secteurs_cibles:
+  - "Data & IA"
+  - "Conseil / transformation numérique"
+  - "Secteur public"
+
+budget_min_eur: 20000
+budget_max_eur: 500000
+
+expertises_cles:
+  - "RAG / retrieval augmenté"
+  - "Agents IA / agentique"
+  - "MLOps et industrialisation IA"
+  - "Gouvernance et sécurité de l'IA"
+  - "Data engineering"
+
+references_internes:
+  - "Jenius - plateforme d'agents IA d'entreprise"
+  - "Mission de structuration d'un socle data pour un acteur du conseil"
+
+red_flags:
+  - "Délai de réponse à l'AO inférieur à 5 jours ouvrés"
+  - "Budget non communiqué et hors de la fourchette cible"
+  - "Exigence de développement propriétaire cédé sans contrepartie"
