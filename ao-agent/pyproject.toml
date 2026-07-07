@@ -12,10 +12,12 @@ dependencies = [
     "pymupdf>=1.24.0",
     "pyyaml>=6.0",
     "python-dotenv>=1.0.0",
+    "qdrant-client[fastembed]>=1.9.0",
 ]
 
 [project.scripts]
 ao-agent = "ao_agent.cli:main"
+ao-agent-ingest = "ao_agent.rag.ingest:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

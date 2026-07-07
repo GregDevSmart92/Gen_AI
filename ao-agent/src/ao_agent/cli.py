@@ -5,7 +5,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from .analyze import analyze_ao, load_profile
+from .analyze import DEFAULT_DB_PATH, analyze_ao, load_profile
 from .extract import extract_text
 from .llm import DEFAULT_MODEL
 
@@ -28,11 +28,14 @@ def main() -> None:
     parser.add_argument(
         "--output", type=Path, default=None, help="Chemin du fichier markdown de sortie"
     )
+    parser.add_argument(
+        "--db-path", type=Path, default=DEFAULT_DB_PATH, help="Chemin de la base Qdrant (RAG)"
+    )
     args = parser.parse_args()
 
     ao_text = extract_text(args.ao_path)
     profile = load_profile(args.profile)
-    note = analyze_ao(ao_text, profile, model=args.model)
+    note = analyze_ao(ao_text, profile, model=args.model, db_path=args.db_path)
 
     print(note)
 

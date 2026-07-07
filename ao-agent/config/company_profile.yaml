@@ -1,5 +1,9 @@
 # Profil entreprise utilisé par l'agent pour évaluer la pertinence d'un AO.
 # Personnalisez ces valeurs pour Soma Smart.
+#
+# Les références internes (anciennes missions) ne sont plus listées ici depuis la V1 :
+# elles vivent comme fichiers .md dans le dossier `references/` et sont retrouvées
+# automatiquement par recherche sémantique (RAG) au moment de l'analyse.
 
 nom_entreprise: "Soma Smart"
 
@@ -17,10 +21,6 @@ expertises_cles:
   - "MLOps et industrialisation IA"
   - "Gouvernance et sécurité de l'IA"
   - "Data engineering"
-
-references_internes:
-  - "Jenius - plateforme d'agents IA d'entreprise"
-  - "Mission de structuration d'un socle data pour un acteur du conseil"
 
 red_flags:
   - "Délai de réponse à l'AO inférieur à 5 jours ouvrés"
