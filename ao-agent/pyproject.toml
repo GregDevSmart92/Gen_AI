@@ -13,11 +13,13 @@ dependencies = [
     "pyyaml>=6.0",
     "python-dotenv>=1.0.0",
     "qdrant-client[fastembed]>=1.9.0",
+    "requests>=2.31.0",
 ]
 
 [project.scripts]
 ao-agent = "ao_agent.cli:main"
 ao-agent-ingest = "ao_agent.rag.ingest:main"
+ao-agent-collect = "ao_agent.collectors.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
