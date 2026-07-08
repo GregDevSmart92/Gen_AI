@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 
 from ..analyze import DEFAULT_DB_PATH, analyze_ao, load_profile
 from ..llm import DEFAULT_MODEL
+from ..notify import get_webhook_url, notify_teams
 from .boamp import record_id, record_to_ao_text, search_boamp
 from .seen_store import load_seen, mark_seen
 
@@ -48,6 +49,9 @@ def main() -> None:
         help="Liste les nouveaux AO trouvés sans les analyser (pour vérifier la connexion BOAMP)",
     )
     parser.add_argument("--verbose", action="store_true", help="Affiche les appels d'outils de l'agent")
+    parser.add_argument(
+        "--no-notify", action="store_true", help="Désactive la notification Teams même si configurée"
+    )
     args = parser.parse_args()
 
     veille_config = load_veille_config(args.veille_config)
@@ -65,6 +69,7 @@ def main() -> None:
     new_ids: set[str] = set()
     profile = load_profile(args.profile)
     DEFAULT_OUTPUT_DIR.mkdir(exist_ok=True)
+    webhook_url = None if args.no_notify else get_webhook_url()
 
     analyzed = 0
     for record in records:
@@ -86,6 +91,9 @@ def main() -> None:
         output_path.write_text(note, encoding="utf-8")
         print(f"Analysé : {rid} → {output_path}")
         analyzed += 1
+
+        if webhook_url:
+            notify_teams(webhook_url, f"AO BOAMP {rid}", note, output_path)
 
     if not new_ids:
         print("Aucune nouvelle annonce depuis la dernière exécution.")

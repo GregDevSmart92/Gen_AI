@@ -20,6 +20,7 @@ dependencies = [
 ao-agent = "ao_agent.cli:main"
 ao-agent-ingest = "ao_agent.rag.ingest:main"
 ao-agent-collect = "ao_agent.collectors.cli:main"
+ao-agent-validate = "ao_agent.validate_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
