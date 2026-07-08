@@ -1,12 +1,12 @@
-# Agent de pré-qualification d'AO — V0
+# Agent de pré-qualification d'AO — V2
 
-Premier agent IA (version 0) : prend un appel d'offres (PDF, TXT ou MD), l'analyse avec Claude
-à partir du profil de Soma Smart, et produit une note de synthèse markdown (résumé, score de
-pertinence, red flags, références internes à mobiliser, ébauche de plan de réponse).
+Agent IA qui prend un appel d'offres (PDF, TXT ou MD) et produit une note de synthèse markdown
+(résumé, score de pertinence, red flags, références internes à mobiliser, ébauche de plan de
+réponse) pour l'équipe business development de Soma Smart.
 
-Ce n'est **pas encore un agent** au sens strict (pas de boucle d'outils, pas de RAG) : c'est le
-socle V0 — un seul appel structuré au LLM — sur lequel les prochaines versions vont s'appuyer
-(RAG sur les anciennes missions, veille automatisée, notification Slack, etc.).
+Depuis la V2, c'est un **vrai agent** : Claude dispose d'outils (recherche sémantique dans les
+anciennes missions, vérification de budget) et décide lui-même quand et comment les utiliser dans
+une boucle, plutôt que de recevoir des données pré-calculées par le code.
 
 ## Installation
 
@@ -21,42 +21,86 @@ cp .env.example .env
 
 ## Configuration
 
-Éditez `config/company_profile.yaml` pour refléter le vrai profil de Soma Smart (secteurs
-cibles, fourchette de budget, expertises clés, références internes, red flags).
+- `config/company_profile.yaml` : profil entreprise (secteurs cibles, fourchette de budget,
+  expertises clés, red flags).
+- `references/*.md` : vos anciennes missions/références, un fichier par mission (objet, client,
+  réalisation, résultat, expertises mobilisées). Trois exemples fictifs sont fournis — remplacez-les
+  par vos vraies missions.
 
-## Utilisation
+## Indexer les références (RAG) — à faire avant la première analyse
 
 ```bash
-python -m ao_agent.cli samples/exemple_ao.txt
+ao-agent-ingest
+```
+
+Cette commande découpe chaque fichier de `references/` en paragraphes, calcule leurs embeddings
+(modèle local, via FastEmbed) et les indexe dans une base Qdrant locale (`qdrant_data/`, non
+versionnée). À relancer à chaque fois que vous ajoutez ou modifiez une mission de référence — la
+commande réindexe tout depuis zéro à chaque exécution.
+
+> **Premier lancement : accès réseau nécessaire.** Le modèle d'embedding (~80 Mo) est téléchargé
+> une seule fois puis mis en cache localement. Si votre réseau bloque les téléchargements externes,
+> cette étape échouera tant que ce n'est pas résolu — les analyses elles-mêmes (appel à Claude)
+> n'ont pas ce problème puisqu'elles passent par HTTPS normal comme le reste de l'agent.
+
+## Analyser un AO
+
+```bash
+ao-agent samples/exemple_ao.txt
 ```
 
 Options :
 - `--profile <chemin>` : utiliser un autre profil entreprise (YAML)
 - `--model <id>` : changer de modèle Claude (par défaut `claude-opus-4-8`)
 - `--output <chemin>` : chemin du fichier markdown de sortie (par défaut `outputs/<nom>-<date>.md`)
+- `--db-path <chemin>` : chemin de la base Qdrant si vous en utilisez une autre que celle par défaut
+- `--verbose` : affiche en direct les appels d'outils de l'agent (utile pour voir la boucle en action)
 
 La note est affichée dans le terminal et sauvegardée dans `outputs/`.
+
+## Comment fonctionne la boucle agent (V2)
+
+1. Claude reçoit le texte de l'AO
+2. Il décide d'appeler `chercher_references_internes` avec une requête ciblée (et peut la
+   raffiner ou en essayer une autre s'il n'est pas satisfait des résultats)
+3. Si un budget est mentionné, il appelle `verifier_budget` (calcul déterministe en code, pas
+   un jugement du modèle)
+4. Une fois qu'il a assez d'informations, il rédige la note finale et arrête d'appeler des outils
+5. Une limite de 6 itérations protège contre une boucle qui ne se terminerait pas
+
+Avec `--verbose`, vous voyez chaque appel d'outil s'afficher au fur et à mesure, par exemple :
+```
+[outil] chercher_references_internes({'requete': 'assistant RAG connecté à SharePoint'})
+[outil] verifier_budget({'budget_eur': 50000})
+```
 
 ## Structure
 
 ```
 ao-agent/
 ├── config/
-│   └── company_profile.yaml   # grille de scoring / profil entreprise
+│   └── company_profile.yaml   # profil entreprise (secteurs, budget, expertises, red flags)
+├── references/                 # anciennes missions (corpus indexé par le RAG)
 ├── samples/
 │   └── exemple_ao.txt         # AO fictif pour tester sans PDF
 ├── src/ao_agent/
 │   ├── extract.py             # extraction de texte (PDF via PyMuPDF, TXT/MD brut)
-│   ├── llm.py                 # appel à l'API Claude
-│   ├── analyze.py             # construction du prompt + orchestration
-│   └── cli.py                 # point d'entrée en ligne de commande
+│   ├── llm.py                 # appel à l'API Claude (avec ou sans outils)
+│   ├── tools.py                # définition des outils + exécution (recherche, budget)
+│   ├── analyze.py             # prompt système + boucle agentique
+│   ├── cli.py                 # point d'entrée : analyse d'un AO
+│   └── rag/
+│       ├── chunking.py        # découpage des documents en paragraphes
+│       ├── vectorstore.py     # client Qdrant (indexation + recherche)
+│       └── ingest.py          # point d'entrée : indexation des références
+├── qdrant_data/                 # base vectorielle locale (non versionné)
 └── outputs/                    # notes générées (non versionné)
 ```
 
 ## Roadmap (prochaines versions)
 
-- **V1** : RAG sur d'anciennes missions/références (Qdrant) pour ancrer le score de pertinence
-- **V2** : transformer en véritable agent (boucle d'outils : recherche interne, scoring, génération)
+- ~~**V1** : RAG sur d'anciennes missions/références (Qdrant) pour ancrer le score de pertinence~~ ✅
+- ~~**V2** : transformer en véritable agent (boucle d'outils : recherche interne, scoring, génération)~~ ✅
 - **V3** : automatiser la collecte des AO (connecteur mail ou scraper de plateforme)
 - **V4** : notification Slack/Teams + validation humaine formalisée
 - **V5** : logs/observabilité pour mesurer la pertinence du score dans le temps
