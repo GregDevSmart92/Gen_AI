@@ -1,4 +1,4 @@
-# Agent de pré-qualification d'AO — V3
+# Agent de pré-qualification d'AO — V4
 
 Agent IA qui prend un appel d'offres (PDF, TXT ou MD) et produit une note de synthèse markdown
 (résumé, score de pertinence, red flags, références internes à mobiliser, ébauche de plan de
@@ -97,6 +97,45 @@ sauvegarder une note par annonce dans `outputs/`. Les annonces déjà traitées 
 Options : `--limit <n>` (nombre max d'annonces récupérées), `--veille-config <chemin>`,
 `--seen-path <chemin>`, `--profile`/`--model`/`--db-path`/`--verbose` (identiques à `ao-agent`).
 
+## Notification Teams + validation humaine (V4)
+
+### Configurer la notification Teams
+
+Le format du message est défini par l'agent (pas imposé par Microsoft) — vous devez juste
+créer un flux Teams qui l'accepte, une seule fois :
+
+1. Dans le canal Teams où vous voulez recevoir les notifications, cliquez sur **···** (Plus
+   d'options) → **Workflows**
+2. Cherchez le modèle **"Publier dans un canal lorsqu'une requête webhook est reçue"** (ou
+   équivalent en anglais : *"Post to a channel when a webhook request is received"*)
+3. Quand on vous demande un exemple de contenu JSON pour définir le schéma, collez :
+   ```json
+   {"ao": "exemple_ao.txt", "resume": "...", "score": "5 - ...", "fichier": "outputs/exemple_ao-....md"}
+   ```
+4. Reliez les champs `ao`, `resume`, `score`, `fichier` au message posté dans le canal
+5. Copiez l'URL de webhook générée dans `.env` :
+   ```
+   TEAMS_WEBHOOK_URL=https://...
+   ```
+
+> ⚠️ Microsoft a fait évoluer ce mécanisme récemment (les anciens "Connectors" webhook sont
+> dépréciés au profit de l'app Workflows/Power Automate) — les noms exacts des menus peuvent
+> varier légèrement selon votre version de Teams. Si `TEAMS_WEBHOOK_URL` n'est pas défini, les
+> notifications sont simplement désactivées (rien ne bloque le reste de l'agent).
+
+Une fois configuré, `ao-agent` et `ao-agent-collect` envoient automatiquement une notification
+après chaque note générée (objet de l'AO, résumé, score, chemin du fichier). Désactivable avec
+`--no-notify`.
+
+### Enregistrer une décision humaine formalisée
+
+```bash
+ao-agent-validate outputs/exemple_ao-20260708.md --decision go --commentaire "Bon fit expertises" --auteur "Prénom Nom"
+```
+
+Enregistre la décision (`go` / `no-go` / `a-clarifier`) dans un journal horodaté et traçable
+(`state/decisions.jsonl`, un JSON par ligne), au lieu d'une décision informelle non tracée.
+
 ## Structure
 
 ```
@@ -113,6 +152,9 @@ ao-agent/
 │   ├── tools.py                # définition des outils + exécution (recherche, budget)
 │   ├── analyze.py             # prompt système + boucle agentique
 │   ├── cli.py                 # point d'entrée : analyse d'un AO
+│   ├── notify.py               # notification Teams
+│   ├── validation.py           # journal des décisions humaines
+│   ├── validate_cli.py         # point d'entrée : ao-agent-validate
 │   ├── rag/
 │   │   ├── chunking.py        # découpage des documents en paragraphes
 │   │   ├── vectorstore.py     # client Qdrant (indexation + recherche)
@@ -122,7 +164,7 @@ ao-agent/
 │       ├── seen_store.py       # suivi des AO déjà traités
 │       └── cli.py              # point d'entrée : veille + analyse automatique
 ├── qdrant_data/                 # base vectorielle locale (non versionné)
-├── state/                       # suivi des AO déjà traités (non versionné)
+├── state/                       # suivi BOAMP + journal des décisions (non versionné)
 └── outputs/                    # notes générées (non versionné)
 ```
 
@@ -131,5 +173,5 @@ ao-agent/
 - ~~**V1** : RAG sur d'anciennes missions/références (Qdrant) pour ancrer le score de pertinence~~ ✅
 - ~~**V2** : transformer en véritable agent (boucle d'outils : recherche interne, scoring, génération)~~ ✅
 - ~~**V3** : automatiser la collecte des AO (connecteur BOAMP)~~ ✅
-- **V4** : notification Slack/Teams + validation humaine formalisée
+- ~~**V4** : notification Teams + validation humaine formalisée~~ ✅
 - **V5** : logs/observabilité pour mesurer la pertinence du score dans le temps

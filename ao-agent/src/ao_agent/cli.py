@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from .analyze import DEFAULT_DB_PATH, analyze_ao, load_profile
 from .extract import extract_text
 from .llm import DEFAULT_MODEL
+from .notify import get_webhook_url, notify_teams
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PROFILE_PATH = PROJECT_ROOT / "config" / "company_profile.yaml"
@@ -34,6 +35,9 @@ def main() -> None:
     parser.add_argument(
         "--verbose", action="store_true", help="Affiche les appels d'outils de l'agent en direct"
     )
+    parser.add_argument(
+        "--no-notify", action="store_true", help="Désactive la notification Teams même si configurée"
+    )
     args = parser.parse_args()
 
     ao_text = extract_text(args.ao_path)
@@ -52,6 +56,11 @@ def main() -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(note, encoding="utf-8")
     print(f"\n--\nNote sauvegardée : {output_path}", file=sys.stderr)
+
+    webhook_url = get_webhook_url()
+    if webhook_url and not args.no_notify:
+        if notify_teams(webhook_url, args.ao_path.name, note, output_path):
+            print("Notification Teams envoyée.", file=sys.stderr)
 
 
 if __name__ == "__main__":
