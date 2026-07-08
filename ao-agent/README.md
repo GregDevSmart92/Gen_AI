@@ -1,4 +1,4 @@
-# Agent de pré-qualification d'AO — V4
+# Agent de pré-qualification d'AO — V5
 
 Agent IA qui prend un appel d'offres (PDF, TXT ou MD) et produit une note de synthèse markdown
 (résumé, score de pertinence, red flags, références internes à mobiliser, ébauche de plan de
@@ -136,6 +136,23 @@ ao-agent-validate outputs/exemple_ao-20260708.md --decision go --commentaire "Bo
 Enregistre la décision (`go` / `no-go` / `a-clarifier`) dans un journal horodaté et traçable
 (`state/decisions.jsonl`, un JSON par ligne), au lieu d'une décision informelle non tracée.
 
+## Observabilité (V5)
+
+Chaque analyse (`ao-agent` ou `ao-agent-collect`) est désormais enregistrée automatiquement dans
+`state/analysis_log.jsonl` : score donné par l'agent, modèle utilisé, outils appelés, tokens
+consommés, durée. Pas de configuration nécessaire, ça marche dès l'installation.
+
+```bash
+ao-agent-report
+```
+
+Affiche des statistiques agrégées : nombre d'analyses, score moyen, tokens et durée totale/moyenne,
+et surtout **le score moyen de l'agent par décision humaine** (en croisant avec
+`state/decisions.jsonl` de la V4) — la vraie mesure de la V5 : *le score que donne l'agent
+correspond-il à ce que les humains décident au final ?* Si le score moyen des AO validés "go" est
+nettement supérieur à ceux en "no-go", le score fait son travail ; sinon, c'est un signal pour
+revoir le prompt ou la grille de scoring.
+
 ## Structure
 
 ```
@@ -155,6 +172,9 @@ ao-agent/
 │   ├── notify.py               # notification Teams
 │   ├── validation.py           # journal des décisions humaines
 │   ├── validate_cli.py         # point d'entrée : ao-agent-validate
+│   ├── observability.py        # journal des analyses (score, tokens, durée)
+│   ├── report.py               # croisement analyses × décisions humaines
+│   ├── report_cli.py           # point d'entrée : ao-agent-report
 │   ├── rag/
 │   │   ├── chunking.py        # découpage des documents en paragraphes
 │   │   ├── vectorstore.py     # client Qdrant (indexation + recherche)
@@ -164,14 +184,14 @@ ao-agent/
 │       ├── seen_store.py       # suivi des AO déjà traités
 │       └── cli.py              # point d'entrée : veille + analyse automatique
 ├── qdrant_data/                 # base vectorielle locale (non versionné)
-├── state/                       # suivi BOAMP + journal des décisions (non versionné)
+├── state/                       # suivi BOAMP, décisions, journal d'analyses (non versionné)
 └── outputs/                    # notes générées (non versionné)
 ```
 
-## Roadmap (prochaines versions)
+## Roadmap
 
 - ~~**V1** : RAG sur d'anciennes missions/références (Qdrant) pour ancrer le score de pertinence~~ ✅
 - ~~**V2** : transformer en véritable agent (boucle d'outils : recherche interne, scoring, génération)~~ ✅
 - ~~**V3** : automatiser la collecte des AO (connecteur BOAMP)~~ ✅
 - ~~**V4** : notification Teams + validation humaine formalisée~~ ✅
-- **V5** : logs/observabilité pour mesurer la pertinence du score dans le temps
+- ~~**V5** : logs/observabilité pour mesurer la pertinence du score dans le temps~~ ✅

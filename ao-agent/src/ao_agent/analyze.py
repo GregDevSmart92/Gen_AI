@@ -1,4 +1,6 @@
 import sys
+import time
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
@@ -7,6 +9,17 @@ from .llm import DEFAULT_MODEL, create_message
 from .tools import DEFAULT_DB_PATH, TOOLS, execute_tool
 
 MAX_ITERATIONS = 6
+
+
+@dataclass
+class AnalysisResult:
+    note: str
+    modele: str
+    iterations: int
+    appels_outils: dict[str, int] = field(default_factory=dict)
+    tokens_entree: int = 0
+    tokens_sortie: int = 0
+    duree_secondes: float = 0.0
 
 SYSTEM_PROMPT_TEMPLATE = """Tu es l'assistant de pré-qualification des appels d'offres (AO) de {nom_entreprise}, \
 une entreprise de conseil spécialisée en Data et IA.
@@ -84,24 +97,42 @@ def analyze_ao(
     model: str = DEFAULT_MODEL,
     db_path: Path = DEFAULT_DB_PATH,
     verbose: bool = False,
-) -> str:
+) -> AnalysisResult:
     """Boucle agentique : Claude reçoit l'AO, choisit d'appeler des outils (recherche de
     références, vérification de budget) autant de fois que nécessaire, puis rédige la
     note finale. S'arrête quand Claude ne demande plus d'outil, ou après MAX_ITERATIONS
-    par sécurité."""
+    par sécurité. Retourne aussi les métriques de la boucle (itérations, outils appelés,
+    tokens, durée) pour l'observabilité (V5)."""
     system_prompt = build_system_prompt(profile)
     messages = [{"role": "user", "content": f"## Cahier des charges de l'AO à analyser\n{ao_text}"}]
 
-    for _ in range(MAX_ITERATIONS):
+    appels_outils: dict[str, int] = {}
+    tokens_entree = 0
+    tokens_sortie = 0
+    start = time.monotonic()
+
+    for iteration in range(1, MAX_ITERATIONS + 1):
         response = create_message(system=system_prompt, messages=messages, model=model, tools=TOOLS)
+        tokens_entree += response.usage.input_tokens
+        tokens_sortie += response.usage.output_tokens
         messages.append({"role": "assistant", "content": response.content})
 
         if response.stop_reason != "tool_use":
-            return "".join(block.text for block in response.content if block.type == "text")
+            note = "".join(block.text for block in response.content if block.type == "text")
+            return AnalysisResult(
+                note=note,
+                modele=model,
+                iterations=iteration,
+                appels_outils=appels_outils,
+                tokens_entree=tokens_entree,
+                tokens_sortie=tokens_sortie,
+                duree_secondes=time.monotonic() - start,
+            )
 
         tool_results = []
         for block in response.content:
             if block.type == "tool_use":
+                appels_outils[block.name] = appels_outils.get(block.name, 0) + 1
                 if verbose:
                     print(f"[outil] {block.name}({block.input})", file=sys.stderr)
                 result_text = execute_tool(block.name, block.input, profile=profile, db_path=db_path)
@@ -110,4 +141,12 @@ def analyze_ao(
                 )
         messages.append({"role": "user", "content": tool_results})
 
-    return "⚠️ Nombre maximum d'itérations atteint sans réponse finale de l'agent."
+    return AnalysisResult(
+        note="⚠️ Nombre maximum d'itérations atteint sans réponse finale de l'agent.",
+        modele=model,
+        iterations=MAX_ITERATIONS,
+        appels_outils=appels_outils,
+        tokens_entree=tokens_entree,
+        tokens_sortie=tokens_sortie,
+        duree_secondes=time.monotonic() - start,
+    )

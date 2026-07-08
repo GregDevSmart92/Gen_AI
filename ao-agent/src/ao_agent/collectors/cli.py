@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from ..analyze import DEFAULT_DB_PATH, analyze_ao, load_profile
 from ..llm import DEFAULT_MODEL
 from ..notify import get_webhook_url, notify_teams
+from ..observability import DEFAULT_LOG_PATH, log_analysis
 from .boamp import record_id, record_to_ao_text, search_boamp
 from .seen_store import load_seen, mark_seen
 
@@ -52,6 +53,9 @@ def main() -> None:
     parser.add_argument(
         "--no-notify", action="store_true", help="Désactive la notification Teams même si configurée"
     )
+    parser.add_argument(
+        "--log-path", type=Path, default=DEFAULT_LOG_PATH, help="Journal des analyses (observabilité)"
+    )
     args = parser.parse_args()
 
     veille_config = load_veille_config(args.veille_config)
@@ -85,12 +89,15 @@ def main() -> None:
             print(f"[nouveau] {rid} — {first_line}")
             continue
 
-        note = analyze_ao(ao_text, profile, model=args.model, db_path=args.db_path, verbose=args.verbose)
+        result = analyze_ao(ao_text, profile, model=args.model, db_path=args.db_path, verbose=args.verbose)
+        note = result.note
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         output_path = DEFAULT_OUTPUT_DIR / f"boamp-{rid}-{timestamp}.md"
         output_path.write_text(note, encoding="utf-8")
         print(f"Analysé : {rid} → {output_path}")
         analyzed += 1
+
+        log_analysis(args.log_path, source=f"boamp:{rid}", note_path=output_path, result=result)
 
         if webhook_url:
             notify_teams(webhook_url, f"AO BOAMP {rid}", note, output_path)
