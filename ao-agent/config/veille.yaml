@@ -1,0 +1,8 @@
+# Mots-clés utilisés par `ao-agent-collect` pour interroger le BOAMP.
+# Personnalisez selon les types d'AO que vous voulez surveiller.
+
+mots_cles:
+  - "intelligence artificielle"
+  - "agent IA"
+  - "RAG"
+  - "data"

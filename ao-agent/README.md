@@ -1,4 +1,4 @@
-# Agent de pré-qualification d'AO — V2
+# Agent de pré-qualification d'AO — V3
 
 Agent IA qui prend un appel d'offres (PDF, TXT ou MD) et produit une note de synthèse markdown
 (résumé, score de pertinence, red flags, références internes à mobiliser, ébauche de plan de
@@ -74,12 +74,36 @@ Avec `--verbose`, vous voyez chaque appel d'outil s'afficher au fur et à mesure
 [outil] verifier_budget({'budget_eur': 50000})
 ```
 
+## Veille automatique sur le BOAMP (V3)
+
+```bash
+ao-agent-collect --dry-run
+```
+
+Interroge l'API ouverte du BOAMP (Bulletin officiel des annonces de marchés publics, hébergée
+par la DILA) avec les mots-clés définis dans `config/veille.yaml`, et liste les nouvelles
+annonces trouvées sans les analyser (`--dry-run`). Relancez sans `--dry-run` pour analyser
+automatiquement chaque nouvelle annonce (même pipeline que `ao-agent`, avec RAG et outils) et
+sauvegarder une note par annonce dans `outputs/`. Les annonces déjà traitées sont mémorisées
+(`state/boamp_seen.json`) pour ne pas les ré-analyser à la prochaine exécution.
+
+> ⚠️ **Non vérifié en conditions réelles pendant le développement** — l'environnement de dev
+> n'a pas accès au réseau externe nécessaire pour tester l'API BOAMP. Le code a été écrit de
+> façon robuste (plusieurs noms de champs candidats essayés, texte brut de l'annonce conservé
+> en repli si un champ attendu manque) et testé avec des réponses simulées, mais **testez
+> `--dry-run` en premier chez vous** avant de compter dessus régulièrement. Si l'API renvoie un
+> format différent de ce qui est attendu, `boamp.py` est le seul fichier à ajuster.
+
+Options : `--limit <n>` (nombre max d'annonces récupérées), `--veille-config <chemin>`,
+`--seen-path <chemin>`, `--profile`/`--model`/`--db-path`/`--verbose` (identiques à `ao-agent`).
+
 ## Structure
 
 ```
 ao-agent/
 ├── config/
-│   └── company_profile.yaml   # profil entreprise (secteurs, budget, expertises, red flags)
+│   ├── company_profile.yaml   # profil entreprise (secteurs, budget, expertises, red flags)
+│   └── veille.yaml             # mots-clés de veille BOAMP
 ├── references/                 # anciennes missions (corpus indexé par le RAG)
 ├── samples/
 │   └── exemple_ao.txt         # AO fictif pour tester sans PDF
@@ -89,11 +113,16 @@ ao-agent/
 │   ├── tools.py                # définition des outils + exécution (recherche, budget)
 │   ├── analyze.py             # prompt système + boucle agentique
 │   ├── cli.py                 # point d'entrée : analyse d'un AO
-│   └── rag/
-│       ├── chunking.py        # découpage des documents en paragraphes
-│       ├── vectorstore.py     # client Qdrant (indexation + recherche)
-│       └── ingest.py          # point d'entrée : indexation des références
+│   ├── rag/
+│   │   ├── chunking.py        # découpage des documents en paragraphes
+│   │   ├── vectorstore.py     # client Qdrant (indexation + recherche)
+│   │   └── ingest.py          # point d'entrée : indexation des références
+│   └── collectors/
+│       ├── boamp.py            # connecteur API BOAMP
+│       ├── seen_store.py       # suivi des AO déjà traités
+│       └── cli.py              # point d'entrée : veille + analyse automatique
 ├── qdrant_data/                 # base vectorielle locale (non versionné)
+├── state/                       # suivi des AO déjà traités (non versionné)
 └── outputs/                    # notes générées (non versionné)
 ```
 
@@ -101,6 +130,6 @@ ao-agent/
 
 - ~~**V1** : RAG sur d'anciennes missions/références (Qdrant) pour ancrer le score de pertinence~~ ✅
 - ~~**V2** : transformer en véritable agent (boucle d'outils : recherche interne, scoring, génération)~~ ✅
-- **V3** : automatiser la collecte des AO (connecteur mail ou scraper de plateforme)
+- ~~**V3** : automatiser la collecte des AO (connecteur BOAMP)~~ ✅
 - **V4** : notification Slack/Teams + validation humaine formalisée
 - **V5** : logs/observabilité pour mesurer la pertinence du score dans le temps
