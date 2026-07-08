@@ -1,13 +1,12 @@
-# Agent de pré-qualification d'AO — V1
+# Agent de pré-qualification d'AO — V2
 
-Agent IA qui prend un appel d'offres (PDF, TXT ou MD), l'analyse avec Claude à partir du profil
-de Soma Smart **et** des anciennes missions pertinentes retrouvées automatiquement (RAG), et
-produit une note de synthèse markdown (résumé, score de pertinence, red flags, références
-internes à mobiliser, ébauche de plan de réponse).
+Agent IA qui prend un appel d'offres (PDF, TXT ou MD) et produit une note de synthèse markdown
+(résumé, score de pertinence, red flags, références internes à mobiliser, ébauche de plan de
+réponse) pour l'équipe business development de Soma Smart.
 
-Depuis la V1, le score de pertinence et les références citées s'appuient sur une vraie recherche
-sémantique dans un corpus d'anciennes missions (`references/`), indexé dans une base vectorielle
-Qdrant — plus une simple liste statique dans un fichier de config.
+Depuis la V2, c'est un **vrai agent** : Claude dispose d'outils (recherche sémantique dans les
+anciennes missions, vérification de budget) et décide lui-même quand et comment les utiliser dans
+une boucle, plutôt que de recevoir des données pré-calculées par le code.
 
 ## Installation
 
@@ -40,10 +39,9 @@ versionnée). À relancer à chaque fois que vous ajoutez ou modifiez une missio
 commande réindexe tout depuis zéro à chaque exécution.
 
 > **Premier lancement : accès réseau nécessaire.** Le modèle d'embedding (~80 Mo) est téléchargé
-> une seule fois puis mis en cache localement. Si votre réseau bloque les téléchargements externes
-> (cf. les soucis de DNS/proxy déjà rencontrés), cette étape échouera tant que ce n'est pas résolu —
-> les analyses elles-mêmes (appel à Claude) n'ont pas ce problème puisqu'elles passent par HTTPS
-> normal comme le reste de l'agent.
+> une seule fois puis mis en cache localement. Si votre réseau bloque les téléchargements externes,
+> cette étape échouera tant que ce n'est pas résolu — les analyses elles-mêmes (appel à Claude)
+> n'ont pas ce problème puisqu'elles passent par HTTPS normal comme le reste de l'agent.
 
 ## Analyser un AO
 
@@ -56,8 +54,25 @@ Options :
 - `--model <id>` : changer de modèle Claude (par défaut `claude-opus-4-8`)
 - `--output <chemin>` : chemin du fichier markdown de sortie (par défaut `outputs/<nom>-<date>.md`)
 - `--db-path <chemin>` : chemin de la base Qdrant si vous en utilisez une autre que celle par défaut
+- `--verbose` : affiche en direct les appels d'outils de l'agent (utile pour voir la boucle en action)
 
 La note est affichée dans le terminal et sauvegardée dans `outputs/`.
+
+## Comment fonctionne la boucle agent (V2)
+
+1. Claude reçoit le texte de l'AO
+2. Il décide d'appeler `chercher_references_internes` avec une requête ciblée (et peut la
+   raffiner ou en essayer une autre s'il n'est pas satisfait des résultats)
+3. Si un budget est mentionné, il appelle `verifier_budget` (calcul déterministe en code, pas
+   un jugement du modèle)
+4. Une fois qu'il a assez d'informations, il rédige la note finale et arrête d'appeler des outils
+5. Une limite de 6 itérations protège contre une boucle qui ne se terminerait pas
+
+Avec `--verbose`, vous voyez chaque appel d'outil s'afficher au fur et à mesure, par exemple :
+```
+[outil] chercher_references_internes({'requete': 'assistant RAG connecté à SharePoint'})
+[outil] verifier_budget({'budget_eur': 50000})
+```
 
 ## Structure
 
@@ -70,8 +85,9 @@ ao-agent/
 │   └── exemple_ao.txt         # AO fictif pour tester sans PDF
 ├── src/ao_agent/
 │   ├── extract.py             # extraction de texte (PDF via PyMuPDF, TXT/MD brut)
-│   ├── llm.py                 # appel à l'API Claude
-│   ├── analyze.py             # prompt + recherche RAG + orchestration
+│   ├── llm.py                 # appel à l'API Claude (avec ou sans outils)
+│   ├── tools.py                # définition des outils + exécution (recherche, budget)
+│   ├── analyze.py             # prompt système + boucle agentique
 │   ├── cli.py                 # point d'entrée : analyse d'un AO
 │   └── rag/
 │       ├── chunking.py        # découpage des documents en paragraphes
@@ -84,7 +100,7 @@ ao-agent/
 ## Roadmap (prochaines versions)
 
 - ~~**V1** : RAG sur d'anciennes missions/références (Qdrant) pour ancrer le score de pertinence~~ ✅
-- **V2** : transformer en véritable agent (boucle d'outils : recherche interne, scoring, génération)
+- ~~**V2** : transformer en véritable agent (boucle d'outils : recherche interne, scoring, génération)~~ ✅
 - **V3** : automatiser la collecte des AO (connecteur mail ou scraper de plateforme)
 - **V4** : notification Slack/Teams + validation humaine formalisée
 - **V5** : logs/observabilité pour mesurer la pertinence du score dans le temps

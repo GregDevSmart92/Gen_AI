@@ -18,7 +18,7 @@ def main() -> None:
     load_dotenv()
 
     parser = argparse.ArgumentParser(
-        description="Agent V0 de pré-qualification d'appels d'offres (AO) pour Soma Smart."
+        description="Agent de pré-qualification d'appels d'offres (AO) pour Soma Smart."
     )
     parser.add_argument("ao_path", type=Path, help="Chemin vers le cahier des charges (PDF, TXT ou MD)")
     parser.add_argument(
@@ -31,11 +31,16 @@ def main() -> None:
     parser.add_argument(
         "--db-path", type=Path, default=DEFAULT_DB_PATH, help="Chemin de la base Qdrant (RAG)"
     )
+    parser.add_argument(
+        "--verbose", action="store_true", help="Affiche les appels d'outils de l'agent en direct"
+    )
     args = parser.parse_args()
 
     ao_text = extract_text(args.ao_path)
     profile = load_profile(args.profile)
-    note = analyze_ao(ao_text, profile, model=args.model, db_path=args.db_path)
+    note = analyze_ao(
+        ao_text, profile, model=args.model, db_path=args.db_path, verbose=args.verbose
+    )
 
     print(note)
 
