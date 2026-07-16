@@ -2,8 +2,9 @@ from pathlib import Path
 
 from qdrant_client import QdrantClient, models
 
+from .embeddings import embed_query, embed_texts
+
 COLLECTION_NAME = "references_missions"
-EMBEDDING_MODEL_NAME = "BAAI/bge-small-en"
 EMBEDDING_DIM = 384
 
 
@@ -24,17 +25,18 @@ def reset_collection(client: QdrantClient) -> None:
 def index_chunks(client: QdrantClient, chunks: list[dict]) -> None:
     """chunks : [{"text": ..., "source": ...}, ...]
 
-    Les embeddings sont générés localement par FastEmbed (modèle téléchargé une seule
-    fois, puis mis en cache) : aucune donnée n'est envoyée à un service externe pour
-    cette étape.
+    Les embeddings sont générés localement par sentence-transformers (modèle téléchargé
+    une seule fois, puis mis en cache) : aucune donnée n'est envoyée à un service externe
+    pour cette étape.
     """
+    vectors = embed_texts([c["text"] for c in chunks])
     points = [
         models.PointStruct(
             id=i,
-            vector=models.Document(text=c["text"], model=EMBEDDING_MODEL_NAME),
+            vector=vector,
             payload={"text": c["text"], "source": c["source"]},
         )
-        for i, c in enumerate(chunks)
+        for i, (c, vector) in enumerate(zip(chunks, vectors))
     ]
     client.upsert(collection_name=COLLECTION_NAME, points=points)
 
@@ -42,9 +44,10 @@ def index_chunks(client: QdrantClient, chunks: list[dict]) -> None:
 def search(client: QdrantClient, query_text: str, top_k: int = 5) -> list[dict]:
     if not client.collection_exists(COLLECTION_NAME):
         return []
+    query_vector = embed_query(query_text)
     results = client.query_points(
         collection_name=COLLECTION_NAME,
-        query=models.Document(text=query_text, model=EMBEDDING_MODEL_NAME),
+        query=query_vector,
         limit=top_k,
     ).points
     return [
