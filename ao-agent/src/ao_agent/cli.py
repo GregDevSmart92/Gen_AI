@@ -9,6 +9,7 @@ from .analyze import DEFAULT_DB_PATH, analyze_ao, load_profile
 from .extract import extract_text
 from .llm import DEFAULT_MODEL
 from .notify import get_webhook_url, notify_teams
+from .observability import DEFAULT_LOG_PATH, log_analysis
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PROFILE_PATH = PROJECT_ROOT / "config" / "company_profile.yaml"
@@ -38,13 +39,17 @@ def main() -> None:
     parser.add_argument(
         "--no-notify", action="store_true", help="Désactive la notification Teams même si configurée"
     )
+    parser.add_argument(
+        "--log-path", type=Path, default=DEFAULT_LOG_PATH, help="Journal des analyses (observabilité)"
+    )
     args = parser.parse_args()
 
     ao_text = extract_text(args.ao_path)
     profile = load_profile(args.profile)
-    note = analyze_ao(
+    result = analyze_ao(
         ao_text, profile, model=args.model, db_path=args.db_path, verbose=args.verbose
     )
+    note = result.note
 
     print(note)
 
@@ -56,6 +61,8 @@ def main() -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(note, encoding="utf-8")
     print(f"\n--\nNote sauvegardée : {output_path}", file=sys.stderr)
+
+    log_analysis(args.log_path, source=str(args.ao_path), note_path=output_path, result=result)
 
     webhook_url = get_webhook_url()
     if webhook_url and not args.no_notify:
