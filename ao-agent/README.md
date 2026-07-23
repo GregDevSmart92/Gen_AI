@@ -34,14 +34,20 @@ ao-agent-ingest
 ```
 
 Cette commande découpe chaque fichier de `references/` en paragraphes, calcule leurs embeddings
-(modèle local, via FastEmbed) et les indexe dans une base Qdrant locale (`qdrant_data/`, non
-versionnée). À relancer à chaque fois que vous ajoutez ou modifiez une mission de référence — la
-commande réindexe tout depuis zéro à chaque exécution.
+(modèle local `all-MiniLM-L6-v2`, via sentence-transformers/PyTorch) et les indexe dans une base
+Qdrant locale (`qdrant_data/`, non versionnée). À relancer à chaque fois que vous ajoutez ou
+modifiez une mission de référence — la commande réindexe tout depuis zéro à chaque exécution.
 
-> **Premier lancement : accès réseau nécessaire.** Le modèle d'embedding (~80 Mo) est téléchargé
+> **Premier lancement : accès réseau nécessaire.** Le modèle d'embedding (~90 Mo) est téléchargé
 > une seule fois puis mis en cache localement. Si votre réseau bloque les téléchargements externes,
 > cette étape échouera tant que ce n'est pas résolu — les analyses elles-mêmes (appel à Claude)
 > n'ont pas ce problème puisqu'elles passent par HTTPS normal comme le reste de l'agent.
+>
+> **Choix technique (PyTorch plutôt que FastEmbed/onnxruntime) :** sur certains postes Windows
+> verrouillés (pas de droits admin), `onnxruntime` échoue au chargement avec une erreur de DLL
+> native (`DLL load failed... Le module spécifié est introuvable`) faute de pouvoir installer le
+> Visual C++ Redistributable. PyTorch embarque son propre runtime dans son paquet et évite
+> généralement ce problème. Contrepartie : installation plus lourde (~500 Mo-1 Go).
 
 ## Analyser un AO
 
@@ -177,6 +183,7 @@ ao-agent/
 │   ├── report_cli.py           # point d'entrée : ao-agent-report
 │   ├── rag/
 │   │   ├── chunking.py        # découpage des documents en paragraphes
+│   │   ├── embeddings.py      # génération d'embeddings (sentence-transformers)
 │   │   ├── vectorstore.py     # client Qdrant (indexation + recherche)
 │   │   └── ingest.py          # point d'entrée : indexation des références
 │   └── collectors/
